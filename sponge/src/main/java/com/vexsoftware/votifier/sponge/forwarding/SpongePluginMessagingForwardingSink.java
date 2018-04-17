@@ -1,8 +1,9 @@
 package com.vexsoftware.votifier.sponge.forwarding;
 
+import com.google.gson.JsonObject;
 import com.vexsoftware.votifier.model.Vote;
 import com.vexsoftware.votifier.sponge.VotifierPlugin;
-import org.json.JSONObject;
+import com.vexsoftware.votifier.util.GsonInst;
 import org.spongepowered.api.Platform;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.network.ChannelBinding;
@@ -35,8 +36,9 @@ public class SpongePluginMessagingForwardingSink implements ForwardingVoteSink, 
     @Override
     public void handlePayload(ChannelBuf channelBuf, RemoteConnection remoteConnection, Platform.Type type) {
         try {
-            String message = new String(channelBuf.array(), StandardCharsets.UTF_8);
-            JSONObject jsonObject = new JSONObject(message);
+            byte[] msgDirBuf = channelBuf.readBytes(channelBuf.available());
+            String message = new String(msgDirBuf, StandardCharsets.UTF_8);
+            JsonObject jsonObject  = GsonInst.gson.fromJson(message, JsonObject.class);
             Vote v = new Vote(jsonObject);
             listener.onForward(v);
         } catch (Exception e) {
