@@ -245,7 +245,7 @@ public class NuVotifier extends Plugin implements VoteHandler, VotifierPlugin {
                             public void operationComplete(ChannelFuture future) throws Exception {
                                 if (future.isSuccess()) {
                                     serverChannel = future.channel();
-                                    getLogger().info("Votifier enabled on socket "+serverChannel.localAddress()+".");
+                                    getLogger().info("Votifier enabled on socket " + serverChannel.localAddress() + ".");
                                 } else {
                                     SocketAddress socketAddress = future.channel().localAddress();
                                     if (socketAddress == null) {
@@ -280,8 +280,10 @@ public class NuVotifier extends Plugin implements VoteHandler, VotifierPlugin {
                 getLogger().info("Using in-memory cache for votes that are not able to be delivered.");
             } else if ("file".equals(cacheMethod)) {
                 try {
-                    voteCache = new FileVoteCache(ProxyServer.getInstance().getServers().size(), this, new File(getDataFolder(),
-                            fwdCfg.getString("pluginMessaging.file.name")));
+                    voteCache = new FileVoteCache(
+                            ProxyServer.getInstance().getServers().size(), this,
+                            new File(getDataFolder(), fwdCfg.getString("pluginMessaging.file.name")),
+                            fwdCfg.getInt("pluginMessaging.file.cacheTime", -1));
                 } catch (IOException e) {
                     getLogger().log(Level.SEVERE, "Unload to load file cache. Votes will be lost!", e);
                 }
@@ -317,10 +319,22 @@ public class NuVotifier extends Plugin implements VoteHandler, VotifierPlugin {
                     getLogger().info("Address " + section.getString("address") + " couldn't be looked up. Ignoring!");
                     continue;
                 }
-                ProxyForwardingVoteSource.BackendServer server = new ProxyForwardingVoteSource.BackendServer(s,
-                        new InetSocketAddress(address, section.getShort("port")),
-                        KeyCreator.createKeyFrom(section.getString("token",section.getString("key"))));
-                serverList.add(server);
+
+                Key token = null;
+                try {
+                    token = KeyCreator.createKeyFrom(section.getString("token", section.getString("key")));
+                } catch (IllegalArgumentException e) {
+                    getLogger().log(Level.SEVERE,
+                            "An exception occurred while attempting to add proxy target '" + s + "' - maybe your token is wrong? " +
+                                    "Votes will not be forwarded to this server!", e);
+                }
+
+                if (token != null) {
+                    ProxyForwardingVoteSource.BackendServer server = new ProxyForwardingVoteSource.BackendServer(s,
+                            new InetSocketAddress(address, section.getInt("port")),
+                            token);
+                    serverList.add(server);
+                }
             }
 
             forwardingMethod = new ProxyForwardingVoteSource(this, serverGroup, serverList, null);
@@ -377,10 +391,15 @@ public class NuVotifier extends Plugin implements VoteHandler, VotifierPlugin {
     }
 
     @Override
-    public void onError(Channel channel, Throwable throwable) {
+    public void onError(Channel channel, boolean alreadyHandledVote, Throwable throwable) {
         if (debug) {
-            getLogger().log(Level.SEVERE, "Unable to process vote from " + channel.remoteAddress(), throwable);
-        } else {
+            if (alreadyHandledVote) {
+                getLogger().log(Level.SEVERE, "Vote processed, however an exception " +
+                        "occurred with a vote from " + channel.remoteAddress(), throwable);
+            } else {
+                getLogger().log(Level.SEVERE, "Unable to process vote from " + channel.remoteAddress(), throwable);
+            }
+        } else if (!alreadyHandledVote) {
             getLogger().log(Level.SEVERE, "Unable to process vote from " + channel.remoteAddress());
         }
     }
