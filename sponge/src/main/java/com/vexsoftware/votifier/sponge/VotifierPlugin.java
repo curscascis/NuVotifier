@@ -291,6 +291,10 @@ public class VotifierPlugin implements VoteHandler, com.vexsoftware.votifier.Vot
             } else if ("pluginmessaging".equals(method)) {
                 String channel = forwardingConfig.getNode("pluginMessaging").getNode("channel").getString("NuVotifier");
                 try {
+                    if(forwardingMethod != null){
+                        forwardingMethod.halt();
+                        forwardingMethod = null;
+                    }
                     forwardingMethod = new SpongePluginMessagingForwardingSink(this, channel, this);
                     getLogger().info("Receiving votes over PluginMessaging channel '" + channel + "'.");
                 } catch (RuntimeException e) {

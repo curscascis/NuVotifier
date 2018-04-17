@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 public class SpongePluginMessagingForwardingSink implements ForwardingVoteSink, RawDataListener {
 
     public SpongePluginMessagingForwardingSink(VotifierPlugin p, String channel, ForwardedVoteListener listener) {
+
         this.channelBinding = Sponge.getChannelRegistrar().createRawChannel(p, channel);
         this.channelBinding.addListener(Platform.Type.SERVER, this);
         this.listener = listener;
@@ -28,6 +29,7 @@ public class SpongePluginMessagingForwardingSink implements ForwardingVoteSink, 
     @Override
     public void halt() {
         channelBinding.removeListener(this);
+        Sponge.getChannelRegistrar().unbindChannel(channelBinding);
     }
 
     @Override
